@@ -75,31 +75,25 @@ cd setup/terraform
 terraform output
 ```
 
-### Generate AWS access keys for Github Actions
+### Configure temporary AWS credentials for GitHub Actions
 
-1. Once everything is created, you'll need to generate AWS credentials for the IAM user account that Github Actions will use in order to interact with your AWS account.
-2. Launch the Cloud Gateway and go to the IAM service.
-3. Under users, you should only see the `github-action-user` user account
-4. Click the account and go to `Security Credentials`
-5. Under `Access keys`  select `Create access key`
-6. Select `Application running outside AWS` and click `Next`, then `Create access key` to finish creating the keys
-7. On the last page, make sure to copy/paste these keys for storing in Github Secrets
-![image](https://user-images.githubusercontent.com/57732284/221991526-ec4af661-b200-48cd-9087-6f1b3b9820b3.png)
+For Cloud Gateway environments that don't allow attaching an IAM policy to `github-action-user`, use the temporary AWS credentials exported by the Cloud Gateway. These credentials expire, so refresh the three GitHub secrets before running deployments again after expiration.
 
 Add these repository secrets in GitHub under **Settings → Secrets and variables → Actions**:
 
-* `AWS_ACCESS_KEY_ID` — access key for the `github-action-user` IAM user
-* `AWS_SECRET_ACCESS_KEY` — secret key for the `github-action-user` IAM user
+* `AWS_ACCESS_KEY_ID` — current Cloud Gateway access key
+* `AWS_SECRET_ACCESS_KEY` — current Cloud Gateway secret key
+* `AWS_SESSION_TOKEN` — current Cloud Gateway session token
 
 The deployment workflows use the Terraform-created `frontend` and `backend` ECR repositories and the `cluster` EKS cluster in `us-east-1`. They build and push each image with the triggering commit's full Git SHA as its tag, then update the matching Kubernetes manifest before applying it.
 
 Also add the repository variable `MOVIE_API_URL` with the public backend load balancer URL, including `http://` or `https://` and without a `/movies` suffix. The frontend Docker build embeds this URL so the deployed UI can request the backend API. The backend deployment must be reachable from the browser for the movie list to load.
 
-The workflows are in `.github/workflows/`: `frontend-ci.yaml` and `backend-ci.yaml` run on pull requests to `main`, while `frontend-cd.yaml` and `backend-cd.yaml` deploy on pushes to `main`. Each workflow can also be started manually from the GitHub Actions tab. CI workflows need no AWS configuration. CD workflows need the two AWS secrets; the frontend CD workflow also needs `MOVIE_API_URL`.
+The workflows are in `.github/workflows/`: `frontend-ci.yaml` and `backend-ci.yaml` run on pull requests to `main`, while `frontend-cd.yaml` and `backend-cd.yaml` deploy on pushes to `main`. Each workflow can also be started manually from the GitHub Actions tab. CI workflows need no AWS configuration. CD workflows need the three AWS secrets; the frontend CD workflow also needs `MOVIE_API_URL`.
 
 ### Add Github Action user to Kubernetes
 
-Now that the cluster and all AWS resources have been created, you'll need to add the `github-action-user` IAM user ARN to the Kubernetes configuration that will allow that user to execute `kubectl` commands against the cluster.
+When the Cloud Gateway role is the identity that creates the cluster and also supplies the temporary GitHub credentials, you can skip this helper. EKS grants the cluster creator `system:masters` access automatically. The helper below is for the long-lived `github-action-user` setup.
 
 1. Run the `init.sh` helper script in the `setup` folder
 
