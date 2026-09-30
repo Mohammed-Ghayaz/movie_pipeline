@@ -86,6 +86,17 @@ terraform output
 7. On the last page, make sure to copy/paste these keys for storing in Github Secrets
 ![image](https://user-images.githubusercontent.com/57732284/221991526-ec4af661-b200-48cd-9087-6f1b3b9820b3.png)
 
+Add these repository secrets in GitHub under **Settings → Secrets and variables → Actions**:
+
+* `AWS_ACCESS_KEY_ID` — access key for the `github-action-user` IAM user
+* `AWS_SECRET_ACCESS_KEY` — secret key for the `github-action-user` IAM user
+
+The deployment workflows use the Terraform-created `frontend` and `backend` ECR repositories and the `cluster` EKS cluster in `us-east-1`. They build and push each image with the triggering commit's full Git SHA as its tag, then update the matching Kubernetes manifest before applying it.
+
+Also add the repository variable `MOVIE_API_URL` with the public backend load balancer URL, including `http://` or `https://` and without a `/movies` suffix. The frontend Docker build embeds this URL so the deployed UI can request the backend API. The backend deployment must be reachable from the browser for the movie list to load.
+
+The workflows are in `.github/workflows/`: `frontend-ci.yaml` and `backend-ci.yaml` run on pull requests to `main`, while `frontend-cd.yaml` and `backend-cd.yaml` deploy on pushes to `main`. Each workflow can also be started manually from the GitHub Actions tab. CI workflows need no AWS configuration. CD workflows need the two AWS secrets; the frontend CD workflow also needs `MOVIE_API_URL`.
+
 ### Add Github Action user to Kubernetes
 
 Now that the cluster and all AWS resources have been created, you'll need to add the `github-action-user` IAM user ARN to the Kubernetes configuration that will allow that user to execute `kubectl` commands against the cluster.
