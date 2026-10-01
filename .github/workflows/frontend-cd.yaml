@@ -127,6 +127,12 @@ jobs:
           kubectl rollout status deployment/frontend --timeout=180s || true
           echo "----- Logging - kubectl get all ---- "
           kubectl get all
+          echo "----- Logging - kubectl get nodes -----"
+          kubectl get nodes -o wide
+          echo "----- Logging - kubectl describe frontend pods -----"
+          kubectl describe pods -l app=frontend
+          echo "----- Logging - recent Kubernetes events -----"
+          kubectl get events --sort-by=.lastTimestamp
           echo "----- Logging - kubectl describe deploy ----- "
           kubectl describe deploy frontend
       - name: Verify Frontend ECR image
